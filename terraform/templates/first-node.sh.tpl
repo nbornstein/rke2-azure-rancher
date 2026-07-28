@@ -49,11 +49,13 @@ helm repo update
 
 /var/lib/rancher/rke2/bin/kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml create ns cattle-system || true
 
-helm install rancher rancher-stable/rancher \
+helm install rancher rancher-prime/rancher \
   --kubeconfig /etc/rancher/rke2/rke2.yaml \
   --namespace cattle-system \
   --set hostname=${rancher_hostname} \
   --set bootstrapPassword="AdminPassword123!" \
   --set ingress.tls.source=letsEncrypt \
   --set letsEncrypt.email="admin@suse-southeast.com" \
-  --set letsEncrypt.ingress.class=nginx
+  --set letsEncrypt.ingress.class=nginx \
+  --set registration.enabled=true \
+  --set registration.regCode="${rancher_prime_reg_code}"

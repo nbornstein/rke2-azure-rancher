@@ -72,10 +72,11 @@ resource "azurerm_linux_virtual_machine" "vm" {
   user_data = base64encode(
     count.index == 0 ?
     templatefile("${path.module}/templates/first-node.sh.tpl", {
-      sles_reg_code    = var.sles_reg_code,
-      rke2_token       = var.rke2_token,
-      lb_ip            = azurerm_public_ip.lb_pip.ip_address,
-      rancher_hostname = var.rancher_hostname
+      sles_reg_code          = var.sles_reg_code,
+      rancher_prime_reg_code = var.rancher_prime_reg_code,
+      rke2_token             = var.rke2_token,
+      lb_ip                  = azurerm_public_ip.lb_pip.ip_address,
+      rancher_hostname       = var.rancher_hostname
     }) :
     templatefile("${path.module}/templates/join-node.sh.tpl", {
       sles_reg_code    = var.sles_reg_code,
