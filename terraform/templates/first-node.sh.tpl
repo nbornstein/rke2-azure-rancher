@@ -44,7 +44,7 @@ curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 |
 sleep 40
 
 # 8. Deploy Rancher via Helm
-helm repo add rancher-stable https://releases.rancher.com/server-charts/stable
+rancher-prime https://charts.rancher.com/server-charts/prime
 helm repo update
 
 /var/lib/rancher/rke2/bin/kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml create ns cattle-system || true
@@ -53,9 +53,9 @@ helm install rancher rancher-prime/rancher \
   --kubeconfig /etc/rancher/rke2/rke2.yaml \
   --namespace cattle-system \
   --set hostname=${rancher_hostname} \
-  --set bootstrapPassword="AdminPassword123!" \
+  --set bootstrapPassword="${rancher_bootstrap_password}" \
   --set ingress.tls.source=letsEncrypt \
-  --set letsEncrypt.email="admin@suse-southeast.com" \
+  --set letsEncrypt.email="${letsencrypt_email}" \
   --set letsEncrypt.ingress.class=nginx \
   --set registration.enabled=true \
   --set registration.regCode="${rancher_prime_reg_code}"

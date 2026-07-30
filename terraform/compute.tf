@@ -64,7 +64,7 @@ resource "azurerm_linux_virtual_machine" "vm" {
 
   source_image_reference {
     publisher = "SUSE"
-    offer     = "sles-15-sp5" # Marketplace default for SLES 15
+    offer     = "sles-15-sp7" # Marketplace default for SLES 15
     sku       = "gen2"
     version   = "latest"
   }
@@ -76,7 +76,9 @@ resource "azurerm_linux_virtual_machine" "vm" {
     rancher_prime_reg_code = var.rancher_prime_reg_code,
     rke2_token             = var.rke2_token,
     lb_ip                  = azurerm_public_ip.lb_pip.ip_address,
-    rancher_hostname       = var.rancher_hostname
+    rancher_hostname       = var.rancher_hostname,
+    rancher_bootstrap_password = var.rancher_bootstrap_password,
+    letsencrypt_email      = var.letsencrypt_email
   }) :
     templatefile("${path.module}/templates/join-node.sh.tpl", {
       sles_reg_code    = var.sles_reg_code,
