@@ -1,2 +1,4 @@
 terraform/.terraform.lock.hcl
 terraform/terraform.tfstate
+terraform/.terraform.lock.hcl
+terraform/.terraform/providers/registry.terraform.io/hashicorp/azurerm/3.117.1/darwin_arm64/terraform-provider-azurerm_v3.117.1_x5
