@@ -59,3 +59,15 @@ variable "letsencrypt_email" {
   type        = string
   description = "Email address for Let's Encrypt certificates."
 }
+
+variable "aws_route53_zone_id" {
+  type        = string
+  description = "The Route53 Zone ID where the rancher hostname CNAME will be created."
+  default     = null
+}
+
+variable "create_dns_record" {
+  type        = bool
+  description = "If true, create a Route53 record for the Rancher hostname."
+  default     = false
+}

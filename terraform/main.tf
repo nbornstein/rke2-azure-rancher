@@ -5,11 +5,20 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~> 3.80"
     }
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
   }
 }
 
 provider "azurerm" {
   features {}
+}
+
+provider "aws" {
+  # Assumes you have AWS credentials configured in your environment
+  # (e.g., via environment variables or ~/.aws/credentials)
 }
 
 resource "azurerm_resource_group" "rg" {
