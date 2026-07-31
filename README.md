@@ -30,6 +30,7 @@ Before you begin, ensure you have the following installed and configured:
 
 *   Terraform (>= 1.3.0)
 *   Azure CLI
+*   AWS CLI (if using Route53 integration)
 *   An active Azure Subscription.
 *   An SSH public key (e.g., in `~/.ssh/id_rsa.pub`).
 
@@ -42,6 +43,10 @@ You will also need the following from the SUSE Customer Center:
 1.  **Authenticate with Azure**: Log in using the Azure CLI.
     ```sh
     az login
+    ```
+    If you plan to use the AWS Route53 integration for DNS, make sure your AWS CLI is also configured with credentials.
+    ```sh
+    aws configure
     ```
 
 2.  **Create a variables file**: This project uses a `terraform.tfvars` file to manage secrets and environment-specific settings. This file is ignored by Git. Create a file named `terraform.tfvars` in the `terraform/` directory and populate it with the required values.
@@ -67,7 +72,41 @@ You will also need the following from the SUSE Customer Center:
     # Secrets for RKE2 and Rancher
     rke2_token             = "a_secure_random_string_for_rke2"
     rancher_bootstrap_password = "a_very_strong_password_for_rancher"
+
+    # Optional: AWS Route53 for automatic DNS record creation
+    create_dns_record      = true
+    aws_route53_zone_id    = "YOUR_ROUTE53_ZONE_ID"
     ```
+
+## AWS IAM Permissions
+
+If you set `create_dns_record = true`, the IAM user or role that Terraform uses must have permissions to manage records in the specified Route 53 hosted zone.
+
+You can create an IAM policy with the following JSON and attach it to your user or role. This policy grants the minimum required permissions, scoped to the specific hosted zone for security.
+
+**Remember to replace `YOUR_ROUTE53_ZONE_ID` with your actual Route 53 Zone ID.**
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "route53:GetHostedZone",
+                "route53:ListResourceRecordSets",
+                "route53:ChangeResourceRecordSets"
+            ],
+            "Resource": "arn:aws:route53:::hostedzone/YOUR_ROUTE53_ZONE_ID"
+        },
+        {
+            "Effect": "Allow",
+            "Action": "route53:GetChange",
+            "Resource": "arn:aws:route53:::change/*"
+        }
+    ]
+}
+```
 
 ## Deployment
 
@@ -89,10 +128,13 @@ You will also need the following from the SUSE Customer Center:
 
 ## Accessing Rancher
 
-Once the deployment is complete, you need to manually create a DNS `A` record for your `rancher_hostname` that points to the public IP address of the Azure Load Balancer.
+Once the deployment is complete, you can access the Rancher UI.
 
-You can get the load balancer's public IP from the Terraform output. After the DNS has propagated, you can access the Rancher UI in your browser at `https://<your-rancher-hostname>`.
+If you have configured the AWS provider and set `create_dns_record = true`, an `A` record for your `rancher_hostname` will be automatically created in your Route53 hosted zone, pointing to the public IP of the Azure Load Balancer.
 
+If you are not using the automated DNS creation, you will need to manually create a DNS `A` record pointing to the load balancer's public IP, which is available in the Terraform output.
+
+After the DNS record has propagated, you can access the Rancher UI in your browser at `https://<your-rancher-hostname>`.
 ## Cleanup
 
 To destroy all the resources created by this project, run the following command:
