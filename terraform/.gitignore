@@ -1,5 +1,0 @@
-# Terraform state and plan files
-*.tfstate
-*.tfstate.backup
-*.tfplan
-terraform.tfvars

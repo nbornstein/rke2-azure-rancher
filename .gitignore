@@ -1,4 +1,7 @@
+# Terraform state and plan files
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/*.tfplan
+terraform/terraform.tfvars
+terraform/.terraform/providers/*
 terraform/.terraform.lock.hcl
-terraform/terraform.tfstate
-terraform/.terraform.lock.hcl
-terraform/.terraform/providers/registry.terraform.io/hashicorp/azurerm/3.117.1/darwin_arm64/terraform-provider-azurerm_v3.117.1_x5
