@@ -15,6 +15,7 @@ This configuration will create the following resources in your Azure subscriptio
 *   **3 Public IPs**: One for each VM to allow for direct SSH access.
 *   **Azure Load Balancer**: To distribute traffic to the Rancher UI across the nodes.
 *   **1 Public IP**: A static public IP for the Load Balancer frontend.
+*   **Route 53 A Records**: If enabled, records are created for the Rancher UI FQDN and for each node (e.g., `rancher-node1.mydomain.com`) for direct access.
 
 The first node runs a setup script via `user_data` to:
 1.  Register the SLES operating system.
@@ -58,6 +59,7 @@ You will also need the following from the SUSE Customer Center:
     resource_group_name    = "rg-my-rancher-cluster"
     vm_size                = "Standard_D4s_v5"
     rancher_hostname       = "rancher.mydomain.com"
+    domain_name            = "mydomain.com"
     letsencrypt_email      = "my-email@example.com"
     admin_username         = "azureuser"
 
@@ -131,6 +133,8 @@ You can create an IAM policy with the following JSON and attach it to your user 
 Once the deployment is complete, you can access the Rancher UI.
 
 If you have configured the AWS provider and set `create_dns_record = true`, an `A` record for your `rancher_hostname` will be automatically created in your Route53 hosted zone, pointing to the public IP of the Azure Load Balancer.
+
+Additionally, `A` records for each node (`rancher-node1.mydomain.com`, `rancher-node2.mydomain.com`, etc.) will be created using the `domain_name` variable, pointing to their respective public IP addresses. This allows for direct SSH access using a predictable FQDN.
 
 If you are not using the automated DNS creation, you will need to manually create a DNS `A` record pointing to the load balancer's public IP, which is available in the Terraform output.
 

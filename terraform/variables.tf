@@ -31,6 +31,12 @@ variable "rancher_hostname" {
   description = "FQDN for Rancher UI"
 }
 
+variable "domain_name" {
+  type        = string
+  description = "The base domain name for the deployment (e.g., mydomain.com)."
+  default     = null
+}
+
 variable "rke2_token" {
   type        = string
   description = "Shared secret token for RKE2 nodes to join"
