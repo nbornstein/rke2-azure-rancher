@@ -44,7 +44,7 @@ curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 |
 sleep 40
 
 # 8. Deploy Rancher via Helm
-rancher-prime https://charts.rancher.com/server-charts/prime
+helm repo add rancher-prime https://charts.rancher.com/server-charts/prime
 helm repo update
 
 /var/lib/rancher/rke2/bin/kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml create ns cattle-system || true
