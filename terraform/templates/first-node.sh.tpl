@@ -59,3 +59,20 @@ helm install rancher rancher-prime/rancher \
   --set letsEncrypt.ingress.class=nginx \
   --set registration.enabled=true \
   --set registration.regCode="${rancher_prime_reg_code}"
+
+# 9. Wait for Rancher and configure settings
+
+# Wait for the Rancher deployment to become available before attempting to change settings.
+echo "Waiting for Rancher deployment to be ready..."
+/var/lib/rancher/rke2/bin/kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml \
+  wait --for=condition=Available \
+  --namespace cattle-system \
+  --timeout=600s \
+  deployment/rancher
+echo "Rancher deployment is ready."
+
+# Set the agent-tls-mode to 'system-store' for downstream cluster agents.
+echo "Setting agent-tls-mode to system-store..."
+/var/lib/rancher/rke2/bin/kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml \
+  patch setting agent-tls-mode --type=merge -p '{"value": "system-store"}'
+echo "agent-tls-mode successfully set to system-store."
