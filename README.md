@@ -81,6 +81,7 @@ You will also need the following from the SUSE Customer Center:
     sles_reg_code          = "YOUR_SLES_REG_CODE"
     rancher_prime_reg_code = "YOUR_RANCHER_PRIME_REG_CODE"
     gemini_api_key         = "YOUR_GEMINI_API_KEY"
+    gemini_model           = "gemini-3-flash-preview" # Optional: The Gemini model to use
 
     # Secrets for RKE2 and Rancher
     rke2_token             = "a_secure_random_string_for_rke2"
@@ -177,7 +178,7 @@ Once the repository is added, the AI Assistant extension will become available f
 The deployment script automatically configures Rancher to use Google Gemini. You can verify these settings in the UI.
 
 1.  Navigate to `☰ > Global Settings` and select **rancher-ai**.
-2.  Confirm that the **LLM Provider** is set to `google-gemini` and the **Gemini LLM Model** is `gemini-3-flash-preview`. The API key is already configured via a Kubernetes secret in the `cattle-system` namespace and does not need to be entered in the UI.
+2.  Confirm that the **LLM Provider** is set to `google-gemini` and the **Gemini LLM Model** matches the value set for the `gemini_model` variable in your `terraform.tfvars` file. The API key is already configured via a Kubernetes secret in the `cattle-system` namespace and does not need to be entered in the UI.
 3.  Click `Install UI Tools` to enable the UI components.
 
 ## Cleanup

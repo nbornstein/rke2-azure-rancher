@@ -89,3 +89,9 @@ variable "gemini_api_key" {
   description = "API Key for Google Gemini to be used by Rancher's AI Assistant 'Liz'."
   sensitive   = true
 }
+
+variable "gemini_model" {
+  type        = string
+  description = "The Google Gemini model to use for the Rancher AI Assistant."
+  default     = "gemini-3-flash-preview"
+}

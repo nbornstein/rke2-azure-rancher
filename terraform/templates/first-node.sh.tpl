@@ -91,7 +91,7 @@ helm install rancher-ai-agent \
   --namespace cattle-ai-agent-system \
   --create-namespace \
   --set activeLlm=gemini \
-  --set geminiLlmModel=gemini-3-flash-preview \
+  --set geminiLlmModel="${gemini_model}" \
   --set googleApiKey="${gemini_api_key}" \
   oci://registry.suse.com/rancher/charts/rancher-ai-agent
 
