@@ -29,7 +29,8 @@ The first node runs a setup script via `user_data` to:
 2.  Install RKE2 as a server.
 3.  Install `cert-manager` for automated TLS certificate management.
 4.  Deploy Rancher Prime via Helm, configured with Let's Encrypt.
-5.  Wait for all components to be fully initialized and healthy.
+5.  Enable and configure the Rancher AI assistant ("Liz") with a Google Gemini provider.
+6.  Wait for all components to be fully initialized and healthy.
 
 The other two management nodes run a simpler script to join the RKE2 cluster. The downstream nodes are then registered to the Rancher server.
 
@@ -79,6 +80,7 @@ You will also need the following from the SUSE Customer Center:
     # SUSE and Rancher registration codes
     sles_reg_code          = "YOUR_SLES_REG_CODE"
     rancher_prime_reg_code = "YOUR_RANCHER_PRIME_REG_CODE"
+    gemini_api_key         = "YOUR_GEMINI_API_KEY"
 
     # Secrets for RKE2 and Rancher
     rke2_token             = "a_secure_random_string_for_rke2"
@@ -148,6 +150,36 @@ Additionally, `A` records for each node (`rancher-node1.mydomain.com`, `rancher-
 If you are not using the automated DNS creation, you will need to manually create a DNS `A` record pointing to the load balancer's public IP, which is available in the Terraform output.
 
 After the DNS record has propagated, you can access the Rancher UI in your browser at `https://<your-rancher-hostname>`.
+
+## Post-Installation Steps
+
+After the Terraform deployment is complete and you can access the Rancher UI, follow these steps to complete the setup for the Rancher AI Assistant.
+
+### 1. Add Extension Repositories
+
+The Rancher UI is extended through a marketplace of extensions. You must first add the repositories that host these extensions.
+
+1.  Log into your Rancher UI with the bootstrap password.
+2.  Navigate to `☰ > Extensions`.
+3.  Click **Add Rancher Repositories**.
+4.  Navigate away from the `☰ > Extensions` page in order to force a refresh.
+
+### 2. Install the AI Assistant Extension
+
+Once the repository is added, the AI Assistant extension will become available for installation.
+
+1.  Return to the `☰ > Extensions` page.
+2.  Under the **Available** tab, find the **AI Assistant** extension and click **Install**.
+3.  Once the extension has finished installing, click the `Reload` button that appears at the top of the page.
+
+### 3. Verify AI Settings
+
+The deployment script automatically configures Rancher to use Google Gemini. You can verify these settings in the UI.
+
+1.  Navigate to `☰ > Global Settings` and select **rancher-ai**.
+2.  Confirm that the **LLM Provider** is set to `google-gemini` and the **Gemini LLM Model** is `gemini-3-flash-preview`. The API key is already configured via a Kubernetes secret in the `cattle-system` namespace and does not need to be entered in the UI.
+3.  Click `Install UI Tools` to enable the UI components.
+
 ## Cleanup
 
 To destroy all the resources created by this project, run the following command:

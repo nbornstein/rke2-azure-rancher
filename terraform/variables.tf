@@ -83,3 +83,9 @@ variable "create_dns_record" {
   description = "If true, create a Route53 record for the Rancher hostname."
   default     = false
 }
+
+variable "gemini_api_key" {
+  type        = string
+  description = "API Key for Google Gemini to be used by Rancher's AI Assistant 'Liz'."
+  sensitive   = true
+}

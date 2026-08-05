@@ -64,7 +64,8 @@ helm install rancher rancher-prime/rancher \
   --set letsEncrypt.ingress.class=nginx \
   --set registration.enabled=true \
   --set registration.regCode="${rancher_prime_reg_code}" \
-  --set agentTLSMode=system-store
+  --set agentTLSMode=system-store \
+  --set features="rancher-ai"
 
 # 9. Wait for Rancher and configure settings
 
@@ -74,10 +75,30 @@ echo "Waiting for Rancher deployment to be ready..."
   rollout status deployment/rancher -n cattle-system --timeout=600s
 echo "Rancher deployment is ready."
 
+# 10. Configure Rancher AI (Liz) with Google Gemini
+echo "Configuring Rancher AI with Google Gemini..."
+
+# Create the secret for the Gemini API key.
+# Using apply with dry-run to make this step idempotent.
+/var/lib/rancher/rke2/bin/kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml \
+  create secret generic llm-provider-google-gemini \
+  --namespace cattle-system \
+  --from-literal=apiKey="${gemini_api_key}" \
+  --dry-run=client -o yaml | /var/lib/rancher/rke2/bin/kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml apply -f -
+
+# Set the LLM provider to google-gemini
+helm install rancher-ai-agent \
+  --namespace cattle-ai-agent-system \
+  --create-namespace \
+  --set activeLlm=gemini \
+  --set geminiLlmModel=gemini-3-flash-preview \
+  --set googleApiKey="${gemini_api_key}" \
+  oci://registry.suse.com/rancher/charts/rancher-ai-agent
+
 # Final health check to ensure Rancher is fully available before script exits.
 # This polls the ingress endpoint to confirm the application is responsive.
 echo "Performing final health check on Rancher..."
-timeout 300s bash -c 'while [[ "$(curl -k -s -o /dev/null -w ''%{http_code}'' https://localhost/healthz)" != "200" ]]; do echo "Waiting for Rancher to be healthy..."; sleep 5; done'
+timeout 300s bash -c 'while [[ "$(curl -k -s -o /dev/null -w ''%%{http_code}'' https://localhost/healthz)" != "200" ]]; do echo "Waiting for Rancher to be healthy..."; sleep 5; done'
 if [ $? -ne 0 ]; then
   echo "Timed out waiting for Rancher to become healthy." >&2
   exit 1
