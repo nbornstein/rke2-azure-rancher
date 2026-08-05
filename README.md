@@ -11,19 +11,27 @@ This configuration will create the following resources in your Azure subscriptio
 *   **Subnet**: A dedicated subnet for the RKE2 nodes.
 *   **Network Security Group (NSG)**: Firewall rules to control inbound traffic (SSH, HTTP, HTTPS, Kube-API).
 *   **Availability Set**: To ensure high availability across the VMs.
-*   **3 Virtual Machines**: SLES 15 SP7 nodes for the RKE2 cluster.
-*   **3 Public IPs**: One for each VM to allow for direct SSH access.
-*   **Azure Load Balancer**: To distribute traffic to the Rancher UI across the nodes.
-*   **1 Public IP**: A static public IP for the Load Balancer frontend.
-*   **Route 53 A Records**: If enabled, records are created for the Rancher UI FQDN and for each node (e.g., `rancher-node1.mydomain.com`) for direct access.
+*   **Virtual Machines**:
+    *   A 3-node, high-availability RKE2 cluster running on SLES 15 SP7 VMs. This cluster hosts the Rancher Prime management server.
+    *   A configurable number of downstream SLES VMs (defaults to 1) that will be registered as a separate cluster managed by Rancher.
+*   **Public IPs**:
+    *   One for each VM in the management cluster for direct SSH access.
+    *   One for each downstream node VM for direct SSH access.
+    *   A static public IP for the Load Balancer frontend.
+*   **Azure Load Balancer**: To distribute traffic to the Rancher UI across the management cluster nodes.
+*   **Route 53 A Records**: If enabled, records are created for:
+    *   The Rancher UI FQDN (`rancher.mydomain.com`).
+    *   Each node in the management cluster (`rancher-node-X.mydomain.com`).
+    *   Each downstream node (`downstream-node-X.mydomain.com`).
 
 The first node runs a setup script via `user_data` to:
 1.  Register the SLES operating system.
 2.  Install RKE2 as a server.
 3.  Install `cert-manager` for automated TLS certificate management.
 4.  Deploy Rancher Prime via Helm, configured with Let's Encrypt.
+5.  Wait for all components to be fully initialized and healthy.
 
-The other two nodes run a simpler script to join the RKE2 cluster.
+The other two management nodes run a simpler script to join the RKE2 cluster. The downstream nodes are then registered to the Rancher server.
 
 ## Prerequisites
 
@@ -58,6 +66,7 @@ You will also need the following from the SUSE Customer Center:
     azure_location         = "westus"
     resource_group_name    = "rg-my-rancher-cluster"
     vm_size                = "Standard_D4s_v5"
+    downstream_node_count  = 1 # Number of downstream nodes to create
     rancher_hostname       = "rancher.mydomain.com"
     domain_name            = "mydomain.com"
     letsencrypt_email      = "my-email@example.com"

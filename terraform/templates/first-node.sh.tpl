@@ -40,8 +40,13 @@ curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 |
 /var/lib/rancher/rke2/bin/kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml \
   apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.1/cert-manager.yaml
 
-# Wait for cert-manager deployments
-sleep 40
+# Wait for cert-manager to be ready before installing Rancher.
+# The webhook is the last component to start and is critical for functionality.
+echo "Waiting for cert-manager webhook to be ready..."
+/var/lib/rancher/rke2/bin/kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml \
+  wait --for=condition=Available deployment/cert-manager-webhook \
+  --namespace cert-manager --timeout=300s
+echo "cert-manager webhook is ready."
 
 # 8. Deploy Rancher via Helm
 helm repo add rancher-prime https://charts.rancher.com/server-charts/prime
@@ -58,21 +63,23 @@ helm install rancher rancher-prime/rancher \
   --set letsEncrypt.email="${letsencrypt_email}" \
   --set letsEncrypt.ingress.class=nginx \
   --set registration.enabled=true \
-  --set registration.regCode="${rancher_prime_reg_code}"
+  --set registration.regCode="${rancher_prime_reg_code}" \
+  --set agentTLSMode=system-store
 
 # 9. Wait for Rancher and configure settings
 
 # Wait for the Rancher deployment to become available before attempting to change settings.
 echo "Waiting for Rancher deployment to be ready..."
 /var/lib/rancher/rke2/bin/kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml \
-  wait --for=condition=Available \
-  --namespace cattle-system \
-  --timeout=600s \
-  deployment/rancher
+  rollout status deployment/rancher -n cattle-system --timeout=600s
 echo "Rancher deployment is ready."
 
-# Set the agent-tls-mode to 'system-store' for downstream cluster agents.
-echo "Setting agent-tls-mode to system-store..."
-/var/lib/rancher/rke2/bin/kubectl --kubeconfig /etc/rancher/rke2/rke2.yaml \
-  patch setting agent-tls-mode --type=merge -p '{"value": "system-store"}'
-echo "agent-tls-mode successfully set to system-store."
+# Final health check to ensure Rancher is fully available before script exits.
+# This polls the ingress endpoint to confirm the application is responsive.
+echo "Performing final health check on Rancher..."
+timeout 300s bash -c 'while [[ "$(curl -k -s -o /dev/null -w ''%{http_code}'' https://localhost/healthz)" != "200" ]]; do echo "Waiting for Rancher to be healthy..."; sleep 5; done'
+if [ $? -ne 0 ]; then
+  echo "Timed out waiting for Rancher to become healthy." >&2
+  exit 1
+fi
+echo "Rancher is healthy and fully available."

@@ -14,6 +14,12 @@ variable "vm_size" {
   description = "VM size for RKE2 control plane/worker nodes"
 }
 
+variable "downstream_node_count" {
+  type        = number
+  description = "Number of downstream RKE2/K3S SLES nodes to provision."
+  default     = 1
+}
+
 variable "sles_reg_code" {
   type        = string
   description = "SUSE Linux Enterprise Server Registration Code"

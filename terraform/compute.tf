@@ -1,3 +1,12 @@
+locals {
+  downstream_user_data_path    = "${path.module}/templates/downstream-node.sh.tpl"
+  downstream_user_data_content = fileexists(local.downstream_user_data_path) ? templatefile(local.downstream_user_data_path, {
+    sles_reg_code = var.sles_reg_code
+  }) : ""
+  # user_data must be null or a non-empty string. An empty string will cause a provider error.
+  downstream_user_data = local.downstream_user_data_content == "" ? null : base64encode(local.downstream_user_data_content)
+}
+
 resource "azurerm_availability_set" "avset" {
   name                         = "avset-rke2"
   location                     = azurerm_resource_group.rg.location
@@ -88,4 +97,67 @@ resource "azurerm_linux_virtual_machine" "vm" {
       rancher_hostname = var.rancher_hostname
     })
   )
+}
+
+# --- Downstream Nodes ---
+
+# Public IPs for downstream nodes for direct SSH management
+resource "azurerm_public_ip" "downstream_node_pip" {
+  count               = var.downstream_node_count
+  name                = "pip-downstream-node-${count.index + 1}"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+  allocation_method   = "Static"
+  sku                 = "Standard"
+}
+
+resource "azurerm_network_interface" "downstream_nic" {
+  count               = var.downstream_node_count
+  name                = "nic-downstream-node-${count.index + 1}"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+
+  ip_configuration {
+    name                          = "internal"
+    subnet_id                     = azurerm_subnet.subnet.id
+    private_ip_address_allocation = "Dynamic"
+    public_ip_address_id          = azurerm_public_ip.downstream_node_pip[count.index].id
+  }
+}
+
+resource "azurerm_linux_virtual_machine" "downstream_vm" {
+  count               = var.downstream_node_count
+  name                = "vm-downstream-node-${count.index + 1}"
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = azurerm_resource_group.rg.location
+  size                = var.vm_size
+  admin_username      = var.admin_username
+  availability_set_id = azurerm_availability_set.avset.id
+
+  network_interface_ids = [
+    azurerm_network_interface.downstream_nic[count.index].id,
+  ]
+
+  admin_ssh_key {
+    username   = var.admin_username
+    public_key = var.ssh_public_key != null ? var.ssh_public_key : file("~/.ssh/id_rsa.pub")
+  }
+
+  os_disk {
+    caching              = "ReadWrite"
+    storage_account_type = "Premium_LRS"
+    disk_size_gb         = 80
+  }
+
+  source_image_reference {
+    publisher = "SUSE"
+    offer     = "sles-15-sp7"
+    sku       = "gen2"
+    version   = "latest"
+  }
+
+  # This user_data script is intended to prepare the node for joining a downstream cluster.
+  # You will need to create a 'templates/downstream-node.sh.tpl' file.
+  # A basic template would register the system with SUSE.
+  user_data = local.downstream_user_data
 }

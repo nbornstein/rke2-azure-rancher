@@ -31,3 +31,18 @@ resource "aws_route53_record" "rancher_node_dns" {
   # Note: azurerm_public_ip.node_pip is inferred from compute.tf and is assumed to have a count of 3.
   records = [azurerm_public_ip.node_pip[count.index].ip_address]
 }
+
+resource "aws_route53_record" "downstream_node_dns" {
+  # Create one record for each downstream VM if create_dns_record is true.
+  count = var.create_dns_record && var.aws_route53_zone_id != null && var.domain_name != null ? var.downstream_node_count : 0
+
+  zone_id = var.aws_route53_zone_id
+  # Creates downstream-node1.mydomain.com, downstream-node2.mydomain.com, etc.
+  name            = "downstream-node${count.index + 1}.${var.domain_name}"
+  allow_overwrite = true
+  type            = "A"
+  ttl             = 300
+
+  # Point the A record to the public IP of the corresponding Azure VM
+  records = [azurerm_public_ip.downstream_node_pip[count.index].ip_address]
+}
