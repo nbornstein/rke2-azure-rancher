@@ -88,7 +88,8 @@ resource "azurerm_linux_virtual_machine" "vm" {
     rancher_hostname       = var.rancher_hostname,
     rancher_bootstrap_password = var.rancher_bootstrap_password,
     letsencrypt_email      = var.letsencrypt_email,
-    gemini_api_key         = var.gemini_api_key
+    gemini_api_key         = var.gemini_api_key,
+    gemini_model           = var.gemini_model
   }) :
     templatefile("${path.module}/templates/join-node.sh.tpl", {
       sles_reg_code    = var.sles_reg_code,
