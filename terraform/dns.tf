@@ -17,8 +17,7 @@ resource "aws_route53_record" "rancher_dns" {
 
 resource "aws_route53_record" "rancher_node_dns" {
   # Create one record for each VM if create_dns_record is true.
-  # This assumes 3 VMs are being created.
-  count = var.create_dns_record && var.aws_route53_zone_id != null && var.domain_name != null ? 3 : 0
+  count = var.create_dns_record && var.aws_route53_zone_id != null && var.domain_name != null ? var.rke2_node_count : 0
 
   zone_id = var.aws_route53_zone_id
   # Creates rancher-node1.suse-southeast.com, rancher-node2.suse-southeast.com, etc.
@@ -28,7 +27,6 @@ resource "aws_route53_record" "rancher_node_dns" {
   ttl             = 300
 
   # Point the A record to the public IP of the corresponding Azure VM
-  # Note: azurerm_public_ip.node_pip is inferred from compute.tf and is assumed to have a count of 3.
   records = [azurerm_public_ip.node_pip[count.index].ip_address]
 }
 

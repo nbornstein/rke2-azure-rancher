@@ -18,7 +18,7 @@ resource "azurerm_availability_set" "avset" {
 
 # Public IPs for direct SSH management
 resource "azurerm_public_ip" "node_pip" {
-  count               = 3
+  count               = var.rke2_node_count
   name                = "pip-rke2-node-${count.index + 1}"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
@@ -27,7 +27,7 @@ resource "azurerm_public_ip" "node_pip" {
 }
 
 resource "azurerm_network_interface" "nic" {
-  count               = 3
+  count               = var.rke2_node_count
   name                = "nic-rke2-node-${count.index + 1}"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
@@ -41,14 +41,14 @@ resource "azurerm_network_interface" "nic" {
 }
 
 resource "azurerm_network_interface_backend_address_pool_association" "nic_lb_assoc" {
-  count                   = 3
+  count                   = var.rke2_node_count
   network_interface_id    = azurerm_network_interface.nic[count.index].id
   ip_configuration_name   = "internal"
   backend_address_pool_id = azurerm_lb_backend_address_pool.backend_pool.id
 }
 
 resource "azurerm_linux_virtual_machine" "vm" {
-  count               = 3
+  count               = var.rke2_node_count
   name                = "vm-rke2-node-${count.index + 1}"
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location

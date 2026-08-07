@@ -1,6 +1,6 @@
 # RKE2 and Rancher Prime on Azure with Terraform
 
-This project contains Terraform code to deploy a high-availability, three-node RKE2 cluster on Microsoft Azure. The first node bootstraps the cluster and installs Rancher Prime, while the other two nodes join as agents.
+This project contains Terraform code to deploy a RKE2 cluster on Microsoft Azure. You can choose between a single-node setup or a high-availability, three-node cluster. The first node bootstraps the cluster and installs Rancher Prime, and for an HA setup, the other two nodes join as agents.
 
 ## Architecture
 
@@ -12,7 +12,7 @@ This configuration will create the following resources in your Azure subscriptio
 *   **Network Security Group (NSG)**: Firewall rules to control inbound traffic (SSH, HTTP, HTTPS, Kube-API).
 *   **Availability Set**: To ensure high availability across the VMs.
 *   **Virtual Machines**:
-    *   A 3-node, high-availability RKE2 cluster running on SLES 15 SP7 VMs. This cluster hosts the Rancher Prime management server.
+    *   A 1-node (standalone) or 3-node (high-availability) RKE2 cluster running on SLES 15 SP7 VMs. This cluster hosts the Rancher Prime management server.
     *   A configurable number of downstream SLES VMs (defaults to 1) that will be registered as a separate cluster managed by Rancher.
 *   **Public IPs**:
     *   One for each VM in the management cluster for direct SSH access.
@@ -32,7 +32,7 @@ The first node runs a setup script via `user_data` to:
 5.  Enable and configure the Rancher AI assistant ("Liz") with a Google Gemini provider.
 6.  Wait for all components to be fully initialized and healthy.
 
-The other two management nodes run a simpler script to join the RKE2 cluster. The downstream nodes are then registered to the Rancher server.
+In a 3-node setup, the other two management nodes run a simpler script to join the RKE2 cluster. The downstream nodes are then registered to the Rancher server.
 
 ## Prerequisites
 
@@ -67,6 +67,7 @@ You will also need the following from the SUSE Customer Center:
     azure_location         = "westus"
     resource_group_name    = "rg-my-rancher-cluster"
     vm_size                = "Standard_D4s_v5"
+    rke2_node_count        = 1 # Can be 1 for a standalone cluster or 3 for an HA cluster
     downstream_node_count  = 1 # Number of downstream nodes to create
     rancher_hostname       = "rancher.mydomain.com"
     domain_name            = "mydomain.com"

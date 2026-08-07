@@ -14,6 +14,17 @@ variable "vm_size" {
   description = "VM size for RKE2 control plane/worker nodes"
 }
 
+variable "rke2_node_count" {
+  type        = number
+  description = "Number of RKE2 management cluster nodes. Can be 1 (standalone) or 3 (HA)."
+  default     = 1
+
+  validation {
+    condition     = contains([1, 3], var.rke2_node_count)
+    error_message = "The number of RKE2 nodes must be 1 or 3."
+  }
+}
+
 variable "downstream_node_count" {
   type        = number
   description = "Number of downstream RKE2/K3S SLES nodes to provision."
