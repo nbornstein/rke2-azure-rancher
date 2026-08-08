@@ -106,3 +106,17 @@ variable "gemini_model" {
   description = "The Google Gemini model to use for the Rancher AI Assistant."
   default     = "gemini-3-flash-preview"
 }
+
+variable "scc_username" {
+  type        = string
+  description = "Username for SUSE Customer Center API for de-registration on destroy. If not provided, de-registration is skipped."
+  default     = null
+  sensitive   = true
+}
+
+variable "scc_password" {
+  type        = string
+  description = "Password for SUSE Customer Center API for de-registration on destroy. If not provided, de-registration is skipped."
+  default     = null
+  sensitive   = true
+}

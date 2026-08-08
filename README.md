@@ -41,6 +41,7 @@ Before you begin, ensure you have the following installed and configured:
 *   Terraform (>= 1.3.0)
 *   Azure CLI
 *   AWS CLI (if using Route53 integration)
+*   jq (for SCC de-registration on destroy)
 *   An active Azure Subscription.
 *   An SSH public key (e.g., in `~/.ssh/id_rsa.pub`).
 
@@ -77,6 +78,10 @@ You will also need the following from the SUSE Customer Center:
     # --- Sensitive Values ---
     # Your SSH public key content
     ssh_public_key         = "ssh-rsa AAAA..."
+
+    # Optional: SUSE Customer Center credentials for automatic de-registration on destroy
+    scc_username           = "your-scc-username"
+    scc_password           = "your-scc-password"
 
     # SUSE and Rancher registration codes
     sles_reg_code          = "YOUR_SLES_REG_CODE"
@@ -152,6 +157,17 @@ Additionally, `A` records for each node (`rancher-node1.mydomain.com`, `rancher-
 If you are not using the automated DNS creation, you will need to manually create a DNS `A` record pointing to the load balancer's public IP, which is available in the Terraform output.
 
 After the DNS record has propagated, you can access the Rancher UI in your browser at `https://<your-rancher-hostname>`.
+
+## Automatic De-registration
+
+If you provide `scc_username` and `scc_password` variables, Terraform will automatically de-register the **Rancher Manager instance** from the SUSE Customer Center when you run `terraform destroy`.
+
+This action targets the registration associated with the Rancher Prime license, which is identified in SCC by the `rancher_hostname` FQDN (e.g., `rancher.mydomain.com`). This helps keep your subscriptions clean and prevents orphaned application entries in SCC. The process is handled by a `destroy` provisioner and requires `jq` to be installed on the machine running Terraform. If credentials are not provided, this step is skipped.
+
+**Note**: The `deregister-scc.sh` script must be executable. After creating the script, run the following command from within the `terraform` directory:
+```sh
+chmod +x deregister-scc.sh
+```
 
 ## Post-Installation Steps
 

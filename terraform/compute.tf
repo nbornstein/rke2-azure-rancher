@@ -99,6 +99,7 @@ resource "azurerm_linux_virtual_machine" "vm" {
       rancher_hostname = var.rancher_hostname
     })
   )
+
 }
 
 # --- Downstream Nodes ---
@@ -162,4 +163,42 @@ resource "azurerm_linux_virtual_machine" "downstream_vm" {
   # You will need to create a 'templates/downstream-node.sh.tpl' file.
   # A basic template would register the system with SUSE.
   user_data = local.downstream_user_data
+
+
+}
+
+# --- Destroy-time De-registration ---
+
+# These null_resources act as a hook to run a de-registration script when
+# the associated VMs are destroyed. This pattern is necessary because a
+# destroy-time provisioner cannot directly reference variables like var.scc_username.
+#
+# By storing the necessary data in the 'triggers' map, the values are snapshotted
+# in the Terraform state and become accessible to the provisioner via 'self.triggers'
+# during the destroy phase.
+
+resource "null_resource" "scc_deregister_rancher_manager" {
+  # Only create this resource if SCC credentials are provided. It runs only once
+  # to de-register the single Rancher Manager instance.
+  count = var.scc_username != null && var.scc_password != null ? 1 : 0
+
+  triggers = {
+    # We are targeting the Rancher Manager registration, which is identified
+    # in SCC by the FQDN of the Rancher instance.
+    scc_system_hostname = var.rancher_hostname
+    scc_username        = var.scc_username
+    scc_password        = var.scc_password
+    script_path         = "${path.module}/deregister-scc.sh"
+  }
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = self.triggers.script_path
+
+    environment = {
+      SCC_USERNAME    = self.triggers.scc_username
+      SCC_PASSWORD    = self.triggers.scc_password
+      SYSTEM_HOSTNAME = self.triggers.scc_system_hostname
+    }
+  }
 }
