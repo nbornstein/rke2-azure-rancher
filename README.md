@@ -100,17 +100,18 @@ You will also need the following from the SUSE Customer Center:
 
 ## AWS IAM Permissions
 
-If you set `create_dns_record = true`, the IAM user or role that Terraform uses must have permissions to manage records in the specified Route 53 hosted zone.
+If you enable optional AWS integrations like Route 53 (`create_dns_record = true`) or custom certificates from AWS Secrets Manager (`use_letsencrypt = false`), the IAM user or role that Terraform uses must have the corresponding permissions.
 
-You can create an IAM policy with the following JSON and attach it to your user or role. This policy grants the minimum required permissions, scoped to the specific hosted zone for security.
+You can create an IAM policy with the following JSON and attach it to your user or role. This policy grants the minimum required permissions for both features. You can remove any statement that you do not need.
 
-**Remember to replace `YOUR_ROUTE53_ZONE_ID` with your actual Route 53 Zone ID.**
+**Remember to replace `YOUR_ROUTE53_ZONE_ID` and `YOUR_SECRET_ARN` with your actual resource identifiers.**
 
 ```json
 {
     "Version": "2012-10-17",
     "Statement": [
         {
+            "Sid": "AllowRoute53Management",
             "Effect": "Allow",
             "Action": [
                 "route53:GetHostedZone",
@@ -120,9 +121,16 @@ You can create an IAM policy with the following JSON and attach it to your user 
             "Resource": "arn:aws:route53:::hostedzone/YOUR_ROUTE53_ZONE_ID"
         },
         {
+            "Sid": "AllowRoute53GetChange",
             "Effect": "Allow",
             "Action": "route53:GetChange",
             "Resource": "arn:aws:route53:::change/*"
+        },
+        {
+            "Sid": "AllowSecretsManagerRead",
+            "Effect": "Allow",
+            "Action": "secretsmanager:GetSecretValue",
+            "Resource": "YOUR_SECRET_ARN"
         }
     ]
 }
@@ -145,7 +153,7 @@ You can create an IAM policy with the following JSON and attach it to your user 
     ```sh
     terraform apply
     ```
-    The script will pause for up to 15 minutes while it waits for the Rancher server to be fully installed and become healthy. Terraform polls the health endpoint of the Rancher instance and will only complete the `apply` process once it receives a successful response. This ensures that when the command finishes, your Rancher UI is ready to be accessed.
+    The script will pause for up to 20 minutes while it waits for the Rancher server to be fully installed and become healthy. Terraform polls the health endpoint of the Rancher instance and will only complete the `apply` process once it receives a successful response. This ensures that when the command finishes, your Rancher UI is ready to be accessed.
 
 ## Accessing Rancher
 

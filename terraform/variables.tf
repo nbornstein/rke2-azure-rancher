@@ -120,3 +120,17 @@ variable "scc_password" {
   default     = null
   sensitive   = true
 }
+
+# In your variables.tf file
+
+variable "use_letsencrypt" {
+  description = "Set to true to use Let's Encrypt for the Rancher ingress certificate. Set to false to use a custom certificate from AWS Secrets Manager."
+  type        = bool
+  default     = true
+}
+
+variable "tls_cert_secret_arn" {
+  description = "The ARN of the secret in AWS Secrets Manager containing the TLS certificate and key. Required if use_letsencrypt is false."
+  type        = string
+  default     = ""
+}

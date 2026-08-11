@@ -1,3 +1,9 @@
+data "aws_secretsmanager_secret_version" "custom_cert" {
+  count = !var.use_letsencrypt && var.tls_cert_secret_arn != "" ? 1 : 0
+
+  secret_id = var.tls_cert_secret_arn
+}
+
 locals {
   downstream_user_data_path    = "${path.module}/templates/downstream-node.sh.tpl"
   downstream_user_data_content = fileexists(local.downstream_user_data_path) ? templatefile(local.downstream_user_data_path, {
@@ -5,6 +11,16 @@ locals {
   }) : ""
   # user_data must be null or a non-empty string. An empty string will cause a provider error.
   downstream_user_data = local.downstream_user_data_content == "" ? null : base64encode(local.downstream_user_data_content)
+
+  # Decode the custom certificate from AWS Secrets Manager if provided.
+  # Gracefully handle missing keys using try().
+  custom_cert_data = length(data.aws_secretsmanager_secret_version.custom_cert) > 0 ? jsondecode(data.aws_secretsmanager_secret_version.custom_cert[0].secret_string) : {}
+  tls_crt_b64      = base64encode(try(local.custom_cert_data["tls.crt"], ""))
+  tls_key_b64      = base64encode(try(local.custom_cert_data["tls.key"], ""))
+  # Per your request, this now looks for 'cacerts.pem' (assuming 'cacerts.pm' was a typo)
+  # in the secret for the CA bundle. It falls back to 'ca.crt' for flexibility.
+  ca_certs_pem     = try(local.custom_cert_data["cacerts.pem"], try(local.custom_cert_data["ca.crt"], ""))
+  ca_crt_b64       = base64encode(local.ca_certs_pem)
 }
 
 resource "azurerm_availability_set" "avset" {
@@ -89,7 +105,11 @@ resource "azurerm_linux_virtual_machine" "vm" {
     rancher_bootstrap_password = var.rancher_bootstrap_password,
     letsencrypt_email      = var.letsencrypt_email,
     gemini_api_key         = var.gemini_api_key,
-    gemini_model           = var.gemini_model
+    gemini_model           = var.gemini_model,
+    use_letsencrypt        = var.use_letsencrypt,
+    tls_crt_b64            = local.tls_crt_b64,
+    tls_key_b64            = local.tls_key_b64,
+    ca_crt_b64             = local.ca_crt_b64
   }) :
     templatefile("${path.module}/templates/join-node.sh.tpl", {
       sles_reg_code    = var.sles_reg_code,
@@ -221,6 +241,7 @@ resource "null_resource" "wait_for_rancher" {
     rancher_hostname = var.rancher_hostname
     # The lb_pip resource is assumed to be in a separate loadbalancer.tf file
     lb_public_ip     = azurerm_public_ip.lb_pip.ip_address
+    use_letsencrypt  = var.use_letsencrypt
   }
 
   provisioner "local-exec" {
@@ -230,30 +251,37 @@ resource "null_resource" "wait_for_rancher" {
     # It also checks that port 80 is open, which is required for the Let's Encrypt HTTP-01 challenge.
     command     = <<-EOT
       echo "Waiting for Rancher server to become available at https://${self.triggers.rancher_hostname}"
-      echo "This can take 10-15 minutes. Polling endpoints..."
-      end_time=$((SECONDS+900)) # 15 minute timeout
+      echo "This can take up to 20 minutes. Polling endpoints..."
+      end_time=$((SECONDS+1200)) # 20 minute timeout
       while [ $SECONDS -lt $end_time ]; do
         https_code=$(curl --resolve ${self.triggers.rancher_hostname}:443:${self.triggers.lb_public_ip} --insecure --silent --output /dev/null --write-out "%%{http_code}" https://${self.triggers.rancher_hostname}/healthz)
         if [ "$https_code" = "200" ]; then
           echo "Rancher application is ready (HTTPS /healthz returned 200)."
-          echo "Now verifying that port 80 is open for Let's Encrypt..."
-          # A test request to a non-existent challenge path should return 404 from nginx, not 000 (timeout/refused)
-          http_code=$(curl --connect-timeout 10 --resolve ${self.triggers.rancher_hostname}:80:${self.triggers.lb_public_ip} --insecure --silent --output /dev/null --write-out "%%{http_code}" http://${self.triggers.rancher_hostname}/.well-known/acme-challenge/tf-health-check)
-          if [ "$http_code" = "404" ]; then
-            echo "Port 80 is open and correctly routed to the ingress controller (HTTP 404 received)."
+
+          if [ "${self.triggers.use_letsencrypt}" = "true" ]; then
+            echo "Now verifying that port 80 is open for Let's Encrypt..."
+            # A test request to a non-existent challenge path should return 404 from nginx, not 000 (timeout/refused)
+            http_code=$(curl --connect-timeout 10 --resolve ${self.triggers.rancher_hostname}:80:${self.triggers.lb_public_ip} --insecure --silent --output /dev/null --write-out "%%{http_code}" http://${self.triggers.rancher_hostname}/.well-known/acme-challenge/tf-health-check)
+            if [ "$http_code" = "404" ]; then
+              echo "Port 80 is open and correctly routed to the ingress controller (HTTP 404 received)."
+              echo "Rancher deployment is ready."
+              exit 0
+            else
+              echo "Error: Rancher is running, but port 80 is not correctly configured for Let's Encrypt." >&2
+              echo "A request to the ingress controller returned HTTP code $http_code, but expected 404." >&2
+              echo "A code of '000' means the connection failed, likely due to a missing Load Balancer rule for port 80." >&2
+              exit 1
+            fi
+          else
+            echo "Using custom certificate. Skipping Let's Encrypt port 80 check."
             echo "Rancher deployment is ready."
             exit 0
-          else
-            echo "Error: Rancher is running, but port 80 is not correctly configured for Let's Encrypt." >&2
-            echo "A request to the ingress controller returned HTTP code $http_code, but expected 404." >&2
-            echo "A code of '000' means the connection failed, likely due to a missing Load Balancer rule for port 80." >&2
-            exit 1
           fi
         fi
         echo "Rancher not ready yet (HTTPS /healthz code: $https_code). Retrying in 20 seconds..."
         sleep 20
       done
-      echo "Error: Timed out after 15 minutes waiting for Rancher to become healthy on HTTPS." >&2
+      echo "Error: Timed out after 20 minutes waiting for Rancher to become healthy on HTTPS." >&2
       echo "Please check the cloud-init logs on 'vm-rke2-node-1' for errors: 'sudo journalctl -u cloud-final'" >&2
       exit 1
     EOT
