@@ -134,3 +134,15 @@ variable "tls_cert_secret_arn" {
   type        = string
   default     = ""
 }
+
+variable "rke2_version" {
+  description = "The version of RKE2 to install (e.g., v1.28.10+rke2r1). If not set, the latest stable version is used."
+  type        = string
+  default     = ""
+}
+
+variable "cert_manager_version" {
+  description = "The version of cert-manager to install."
+  type        = string
+  default     = "v1.13.1"
+}

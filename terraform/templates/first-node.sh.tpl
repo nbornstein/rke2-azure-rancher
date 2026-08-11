@@ -22,7 +22,7 @@ write-kubeconfig-mode: "0640"
 EOF
 
 # 4. Install & Start RKE2
-curl -sfL https://get.rke2.io | INSTALL_RKE2_TYPE="server" sh -
+curl -sfL https://get.rke2.io | INSTALL_RKE2_VERSION="${rke2_version}" INSTALL_RKE2_TYPE="server" sh -
 systemctl enable rke2-server.service
 systemctl start rke2-server.service
 
@@ -37,7 +37,7 @@ echo "export KUBECONFIG=/etc/rancher/rke2/rke2.yaml" >> /etc/profile
 curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash -
 
 # 7. Install cert-manager
-kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.1/cert-manager.yaml
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/${cert_manager_version}/cert-manager.yaml
 
 # Wait for cert-manager to be ready before installing Rancher.
 # The webhook is the last component to start and is critical for functionality.
