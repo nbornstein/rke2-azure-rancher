@@ -202,3 +202,60 @@ resource "null_resource" "scc_deregister_rancher_manager" {
     }
   }
 }
+
+# --- Wait for Rancher Server ---
+
+# This resource uses a local-exec provisioner to poll the Rancher health
+# endpoint. It blocks the Terraform apply process until Rancher is fully
+# installed and ready, or until it times out. This provides feedback to the
+# user and ensures that the deployment is complete when Terraform finishes.
+resource "null_resource" "wait_for_rancher" {
+  # Only run this waiter if at least one RKE2 node is being created.
+  count = var.rke2_node_count > 0 ? 1 : 0
+
+  # Using triggers ensures that this resource is re-evaluated if these values change.
+  # It also makes the dependency on the load balancer's IP explicit.
+  triggers = {
+    # This resource logically depends on the first VM where Rancher is installed.
+    vm_id            = azurerm_linux_virtual_machine.vm[0].id
+    rancher_hostname = var.rancher_hostname
+    # The lb_pip resource is assumed to be in a separate loadbalancer.tf file
+    lb_public_ip     = azurerm_public_ip.lb_pip.ip_address
+  }
+
+  provisioner "local-exec" {
+    interpreter = ["bash", "-c"]
+    # This script polls the Rancher health endpoint using curl.
+    # It uses --resolve to bypass DNS, making the check more reliable and faster.
+    # It also checks that port 80 is open, which is required for the Let's Encrypt HTTP-01 challenge.
+    command     = <<-EOT
+      echo "Waiting for Rancher server to become available at https://${self.triggers.rancher_hostname}"
+      echo "This can take 10-15 minutes. Polling endpoints..."
+      end_time=$((SECONDS+900)) # 15 minute timeout
+      while [ $SECONDS -lt $end_time ]; do
+        https_code=$(curl --resolve ${self.triggers.rancher_hostname}:443:${self.triggers.lb_public_ip} --insecure --silent --output /dev/null --write-out "%%{http_code}" https://${self.triggers.rancher_hostname}/healthz)
+        if [ "$https_code" = "200" ]; then
+          echo "Rancher application is ready (HTTPS /healthz returned 200)."
+          echo "Now verifying that port 80 is open for Let's Encrypt..."
+          # A test request to a non-existent challenge path should return 404 from nginx, not 000 (timeout/refused)
+          http_code=$(curl --connect-timeout 10 --resolve ${self.triggers.rancher_hostname}:80:${self.triggers.lb_public_ip} --insecure --silent --output /dev/null --write-out "%%{http_code}" http://${self.triggers.rancher_hostname}/.well-known/acme-challenge/tf-health-check)
+          if [ "$http_code" = "404" ]; then
+            echo "Port 80 is open and correctly routed to the ingress controller (HTTP 404 received)."
+            echo "Rancher deployment is ready."
+            exit 0
+          else
+            echo "Error: Rancher is running, but port 80 is not correctly configured for Let's Encrypt." >&2
+            echo "A request to the ingress controller returned HTTP code $http_code, but expected 404." >&2
+            echo "A code of '000' means the connection failed, likely due to a missing Load Balancer rule for port 80." >&2
+            exit 1
+          fi
+        fi
+        echo "Rancher not ready yet (HTTPS /healthz code: $https_code). Retrying in 20 seconds..."
+        sleep 20
+      done
+      echo "Error: Timed out after 15 minutes waiting for Rancher to become healthy on HTTPS." >&2
+      echo "Please check the cloud-init logs on 'vm-rke2-node-1' for errors: 'sudo journalctl -u cloud-final'" >&2
+      exit 1
+    EOT
+  }
+}

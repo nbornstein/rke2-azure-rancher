@@ -145,6 +145,7 @@ You can create an IAM policy with the following JSON and attach it to your user 
     ```sh
     terraform apply
     ```
+    The script will pause for up to 15 minutes while it waits for the Rancher server to be fully installed and become healthy. Terraform polls the health endpoint of the Rancher instance and will only complete the `apply` process once it receives a successful response. This ensures that when the command finishes, your Rancher UI is ready to be accessed.
 
 ## Accessing Rancher
 
